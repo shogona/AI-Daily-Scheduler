@@ -1,8 +1,8 @@
 import React from 'react';
 
 interface TaskInputProps {
-  tasks: string;
-  setTasks: (tasks: string) => void;
+  tasks: string[];
+  setTasks: (tasks: string[]) => void;
   startTime: string;
   setStartTime: (time: string) => void;
   endTime: string;
@@ -17,6 +17,14 @@ interface TaskInputProps {
   isCalendarFeatureAvailable: boolean;
 }
 
+const taskPlaceholders = [
+  '朝のメールチェックと返信',
+  'プロジェクトXのプレゼン資料作成',
+  'ジムでトレーニング',
+  '夕食の買い出し',
+  '読書'
+];
+
 const TaskInput: React.FC<TaskInputProps> = ({ 
   tasks, setTasks, 
   startTime, setStartTime, 
@@ -26,6 +34,23 @@ const TaskInput: React.FC<TaskInputProps> = ({
   useCalendar, setUseCalendar,
   isCalendarFeatureAvailable
 }) => {
+
+  const handleTaskChange = (index: number, value: string) => {
+    const newTasks = [...tasks];
+    newTasks[index] = value;
+    setTasks(newTasks);
+  };
+
+  const addTask = () => {
+    setTasks([...tasks, '']);
+  };
+
+  const removeTask = (index: number) => {
+    if (tasks.length <= 1) return;
+    const newTasks = tasks.filter((_, i) => i !== index);
+    setTasks(newTasks);
+  };
+
   return (
     <div className="w-full max-w-2xl mx-auto">
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6">
@@ -77,17 +102,47 @@ const TaskInput: React.FC<TaskInputProps> = ({
             </div>
         </div>
 
-        <label htmlFor="task-input" className="block text-lg font-semibold text-slate-700 dark:text-slate-200 mb-2">
+        <label className="block text-lg font-semibold text-slate-700 dark:text-slate-200 mb-2">
           今日やりたいことリスト
         </label>
-        <textarea
-          id="task-input"
-          value={tasks}
-          onChange={(e) => setTasks(e.target.value)}
-          placeholder="例： 朝の散歩(改行)プロジェクトの資料作成(改行)チームミーティング(改行)ジムでトレーニング(改行)読書"
-          className="w-full h-40 p-4 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 resize-none"
-          disabled={isLoading}
-        />
+        <div className="space-y-3">
+          {tasks.map((task, index) => (
+            <div key={index} className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={task}
+                onChange={(e) => handleTaskChange(index, e.target.value)}
+                placeholder={taskPlaceholders[index] || `タスク ${index + 1}`}
+                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 transition duration-200"
+                disabled={isLoading}
+              />
+              {tasks.length > 1 && (
+                <button
+                  onClick={() => removeTask(index)}
+                  className="p-2 text-slate-500 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                  aria-label={`タスク ${index + 1} を削除`}
+                  disabled={isLoading}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        
+        <button
+            onClick={addTask}
+            disabled={isLoading}
+            className="mt-3 flex items-center justify-start text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+            </svg>
+            タスクを追加
+        </button>
+
         <button
           onClick={onSubmit}
           disabled={isLoading}

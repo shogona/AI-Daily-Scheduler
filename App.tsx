@@ -20,7 +20,7 @@ declare global {
 }
 
 const App: React.FC = () => {
-  const [tasks, setTasks] = useState<string>('');
+  const [tasks, setTasks] = useState<string[]>(Array(5).fill(''));
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,8 +28,8 @@ const App: React.FC = () => {
   // Fix: The return type of `setTimeout` in browser environments is `number`, not `NodeJS.Timeout`.
   const notificationTimeouts = useRef<number[]>([]);
 
-  const [startTime, setStartTime] = useState<string>('09:00');
-  const [endTime, setEndTime] = useState<string>('22:00');
+  const [startTime, setStartTime] = useState<string>('06:00');
+  const [endTime, setEndTime] = useState<string>('23:00');
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [isAuthed, setIsAuthed] = useState<boolean>(false);
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false);
@@ -173,8 +173,9 @@ const App: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
+      const tasksAsString = tasks.filter(t => t.trim() !== '').join('\n');
       const eventsToUse = useCalendar && IS_CALENDAR_FEATURE_AVAILABLE ? calendarEvents : [];
-      const newSchedule = await generateSchedule(tasks, startTime, endTime, eventsToUse);
+      const newSchedule = await generateSchedule(tasksAsString, startTime, endTime, eventsToUse);
       setSchedule(newSchedule);
     } catch (err: any) {
       setError(err.message);
