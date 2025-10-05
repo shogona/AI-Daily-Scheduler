@@ -239,9 +239,6 @@ const App: React.FC = () => {
         </main>
 
         <footer className="text-center mt-12 py-4">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-                Powered by Gemini API.
-            </p>
         </footer>
       </div>
     </div>
