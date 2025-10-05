@@ -25,7 +25,8 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
-  const notificationTimeouts = useRef<NodeJS.Timeout[]>([]);
+  // Fix: The return type of `setTimeout` in browser environments is `number`, not `NodeJS.Timeout`.
+  const notificationTimeouts = useRef<number[]>([]);
 
   const [startTime, setStartTime] = useState<string>('09:00');
   const [endTime, setEndTime] = useState<string>('22:00');
