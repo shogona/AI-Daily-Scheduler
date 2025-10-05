@@ -1,0 +1,5 @@
+{
+  "name": "AI Daily Scheduler",
+  "description": "An application where you can list your tasks for the day, and an AI will create a schedule for you, providing notifications when it's time for each task.",
+  "requestFramePermissions": []
+}
