@@ -1,4 +1,5 @@
 import React from 'react';
+import { CalendarEvent } from '../types';
 
 interface TaskInputProps {
   tasks: string[];
@@ -15,6 +16,8 @@ interface TaskInputProps {
   useCalendar: boolean;
   setUseCalendar: (use: boolean) => void;
   isCalendarFeatureAvailable: boolean;
+  calendarEvents: CalendarEvent[];
+  isCalendarLoading: boolean;
 }
 
 const taskPlaceholders = [
@@ -32,7 +35,8 @@ const TaskInput: React.FC<TaskInputProps> = ({
   onSubmit, isLoading, 
   onAuthClick, isAuthed, isAuthLoading,
   useCalendar, setUseCalendar,
-  isCalendarFeatureAvailable
+  isCalendarFeatureAvailable,
+  calendarEvents, isCalendarLoading
 }) => {
 
   const handleTaskChange = (index: number, value: string) => {
@@ -49,6 +53,15 @@ const TaskInput: React.FC<TaskInputProps> = ({
     if (tasks.length <= 1) return;
     const newTasks = tasks.filter((_, i) => i !== index);
     setTasks(newTasks);
+  };
+
+  const formatEventTime = (event: CalendarEvent): string => {
+    if (event.start?.date) {
+        return '終日';
+    }
+    const sTime = event.start?.dateTime ? new Date(event.start.dateTime).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '';
+    const eTime = event.end?.dateTime ? new Date(event.end.dateTime).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '';
+    return `${sTime} - ${eTime}`;
   };
 
   return (
@@ -102,7 +115,32 @@ const TaskInput: React.FC<TaskInputProps> = ({
             </div>
         </div>
 
-        <label className="block text-lg font-semibold text-slate-700 dark:text-slate-200 mb-2">
+        {isAuthed && useCalendar && (
+          <div className="mt-6 mb-4 border-t border-slate-200 dark:border-slate-700 pt-4">
+            <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-3 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-slate-500 dark:text-slate-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                </svg>
+                今日のGoogleカレンダーの予定
+            </h3>
+            {isCalendarLoading ? (
+                <div className="text-center text-sm text-slate-500 dark:text-slate-400 py-2">予定を読み込み中...</div>
+            ) : calendarEvents.length > 0 ? (
+                <ul className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                    {calendarEvents.map((event, index) => (
+                        <li key={index} className="flex items-start text-sm p-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                            <span className="font-medium text-slate-600 dark:text-slate-300 w-24 flex-shrink-0">{formatEventTime(event)}</span>
+                            <span className="text-slate-800 dark:text-slate-100">{event.summary}</span>
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <p className="text-center text-sm text-slate-500 dark:text-slate-400 py-2">今日の予定はありません。</p>
+            )}
+          </div>
+        )}
+
+        <label className="block text-lg font-semibold text-slate-700 dark:text-slate-200 mb-2 pt-4 border-t border-slate-200 dark:border-slate-700">
           今日やりたいことリスト
         </label>
         <div className="space-y-3">

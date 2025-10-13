@@ -1,12 +1,14 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { ScheduleItem, CalendarEvent } from '../types';
 
-if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable is not set.");
+// WARNING: Hardcoding keys is a security risk. Use environment variables in production.
+const API_KEY = 'AIzaSyA2Ij2ePwUEAO-anhZTEuJQsFEoJ7mlpvg';
+
+if (!API_KEY) {
+    throw new Error("API_KEY is not set.");
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: API_KEY });
 
 const schema = {
   type: Type.ARRAY,

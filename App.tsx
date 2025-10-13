@@ -5,11 +5,11 @@ import TaskInput from './components/TaskInput';
 import ScheduleView from './components/ScheduleView';
 import NotificationBell from './components/NotificationBell';
 
-// These should be in .env file in a real app
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const GOOGLE_API_KEY = process.env.API_KEY; 
+// WARNING: Hardcoding keys is a security risk. Use environment variables in production.
+const GOOGLE_CLIENT_ID = '98233438211-3tm4mi2jn5cet36k6v34t9t2ai8mgtji.apps.googleusercontent.com';
+const GOOGLE_API_KEY = 'AIzaSyA2Ij2ePwUEAO-anhZTEuJQsFEoJ7mlpvg';
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
-const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
+const SCOPES = 'https://www.googleapis.com/auth/calendar'; // Changed to read/write for adding events
 const IS_CALENDAR_FEATURE_AVAILABLE = !!(GOOGLE_CLIENT_ID && GOOGLE_API_KEY);
 
 declare global {
@@ -25,7 +25,6 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
-  // Fix: The return type of `setTimeout` in browser environments is `number`, not `NodeJS.Timeout`.
   const notificationTimeouts = useRef<number[]>([]);
 
   const [startTime, setStartTime] = useState<string>('06:00');
@@ -33,7 +32,10 @@ const App: React.FC = () => {
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [isAuthed, setIsAuthed] = useState<boolean>(false);
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false);
+  const [isCalendarLoading, setIsCalendarLoading] = useState<boolean>(false);
   const [useCalendar, setUseCalendar] = useState<boolean>(true);
+  const [isGapiClientReady, setIsGapiClientReady] = useState<boolean>(false);
+  const [isAddingToCalendar, setIsAddingToCalendar] = useState<boolean>(false);
   
   let tokenClient = useRef<any>(null);
 
@@ -45,6 +47,7 @@ const App: React.FC = () => {
   }, []);
 
   const fetchCalendarEvents = useCallback(async () => {
+    setIsCalendarLoading(true);
     try {
       const today = new Date();
       const timeMin = new Date(today.setHours(0, 0, 0, 0)).toISOString();
@@ -60,7 +63,9 @@ const App: React.FC = () => {
       });
       setCalendarEvents(response.result.items);
     } catch (err: any) {
-        setError("カレンダーの予定取得に失敗しました: " + err.message);
+        setError("カレンダーの予定取得に失敗しました: " + (err.message || JSON.stringify(err)));
+    } finally {
+        setIsCalendarLoading(false);
     }
   }, []);
 
@@ -70,10 +75,32 @@ const App: React.FC = () => {
           apiKey: GOOGLE_API_KEY,
           discoveryDocs: [DISCOVERY_DOC],
         });
+        setIsGapiClientReady(true);
     } catch (err: any) {
-        setError("Google API Clientの初期化に失敗しました: " + err.message);
+        let errorMessage = '不明なエラーです。';
+        if (err) {
+            if (err.message) {
+                errorMessage = err.message;
+            } else if (err.result?.error?.message) {
+                errorMessage = err.result.error.message;
+            } else {
+                try {
+                    errorMessage = JSON.stringify(err);
+                } catch {
+                    errorMessage = String(err);
+                }
+            }
+        }
+        setError("Google API Clientの初期化に失敗しました: " + errorMessage);
     }
   }, []);
+  
+  useEffect(() => {
+    if (isAuthed && isGapiClientReady && useCalendar) {
+        fetchCalendarEvents();
+    }
+  }, [isAuthed, isGapiClientReady, useCalendar, fetchCalendarEvents]);
+
 
   const gapiLoaded = useCallback(() => {
     window.gapi.load('client', initializeGapiClient);
@@ -86,16 +113,16 @@ const App: React.FC = () => {
           scope: SCOPES,
           callback: (tokenResponse: any) => {
             if (tokenResponse && tokenResponse.access_token) {
+              window.gapi.client.setToken(tokenResponse);
               setIsAuthed(true);
-              fetchCalendarEvents();
             }
             setIsAuthLoading(false);
           },
         });
     } catch(err: any) {
-        setError("Google Identity Serviceの初期化に失敗しました: " + err.message);
+        setError("Google Identity Serviceの初期化に失敗しました: " + (err.message || JSON.stringify(err)));
     }
-  }, [fetchCalendarEvents]);
+  }, []);
 
   useEffect(() => {
     if (!IS_CALENDAR_FEATURE_AVAILABLE) {
@@ -177,7 +204,8 @@ const App: React.FC = () => {
       const eventsToUse = useCalendar && IS_CALENDAR_FEATURE_AVAILABLE ? calendarEvents : [];
       const newSchedule = await generateSchedule(tasksAsString, startTime, endTime, eventsToUse);
       setSchedule(newSchedule);
-    } catch (err: any) {
+    } catch (err: any)
+{
       setError(err.message);
     } finally {
       setIsLoading(false);
@@ -192,6 +220,55 @@ const App: React.FC = () => {
     Notification.requestPermission().then((permission) => {
       setNotificationPermission(permission);
     });
+  };
+  
+  const handleAddScheduleToCalendar = async () => {
+    if (!isAuthed || schedule.length === 0) {
+      alert('カレンダーと連携してから、スケジュールを作成してください。');
+      return;
+    }
+
+    setIsAddingToCalendar(true);
+    setError(null);
+
+    try {
+      const batch = window.gapi.client.newBatch();
+      const today = new Date();
+      
+      schedule.forEach(item => {
+        const [startTimeStr, endTimeStr] = item.time.split(' - ');
+        if (!startTimeStr || !endTimeStr) return;
+
+        const [startHours, startMinutes] = startTimeStr.split(':').map(Number);
+        const [endHours, endMinutes] = endTimeStr.split(':').map(Number);
+
+        const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), startHours, startMinutes);
+        const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), endHours, endMinutes);
+        
+        if (endDate < startDate) {
+            endDate.setDate(endDate.getDate() + 1);
+        }
+
+        const event = {
+          'summary': `${item.emoji} ${item.task}`,
+          'start': { 'dateTime': startDate.toISOString() },
+          'end': { 'dateTime': endDate.toISOString() },
+        };
+
+        batch.add(window.gapi.client.calendar.events.insert({
+          'calendarId': 'primary',
+          'resource': event,
+        }));
+      });
+
+      await batch;
+      alert(`${schedule.length}件の予定をGoogleカレンダーに追加しました。`);
+
+    } catch (err: any) {
+      setError("カレンダーへの予定追加に失敗しました: " + (err.result?.error?.message || err.message || JSON.stringify(err)));
+    } finally {
+      setIsAddingToCalendar(false);
+    }
   };
 
   return (
@@ -226,6 +303,8 @@ const App: React.FC = () => {
             useCalendar={useCalendar}
             setUseCalendar={setUseCalendar}
             isCalendarFeatureAvailable={IS_CALENDAR_FEATURE_AVAILABLE}
+            calendarEvents={calendarEvents}
+            isCalendarLoading={isCalendarLoading}
           />
 
           {error && (
@@ -235,7 +314,12 @@ const App: React.FC = () => {
             </div>
           )}
 
-          <ScheduleView schedule={schedule} />
+          <ScheduleView 
+            schedule={schedule}
+            onAddToCalendar={handleAddScheduleToCalendar}
+            isAddingToCalendar={isAddingToCalendar}
+            isAuthed={isAuthed}
+          />
         </main>
 
         <footer className="text-center mt-12 py-4">
